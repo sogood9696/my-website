@@ -1,0 +1,34 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "public/uploads"
+public_folder: "/uploads"
+
+collections:
+  - name: "pages"
+    label: "Pages"
+    folder: "content/pages"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "URL Path", name: "path", widget: "string" }
+      - { label: "Body", name: "body", widget: "markdown" }
+
+  - name: "settings"
+    label: "Settings"
+    files:
+      - file: "content/settings/navigation.json"
+        label: "Navigation"
+        name: "navigation"
+        fields:
+          - { label: "Items", name: "items", widget: "list", fields:
+              [ {label: "Label", name: "label", widget: "string"},
+                {label: "Href", name: "href", widget: "string"} ] }
+      - file: "content/settings/seo.json"
+        label: "SEO"
+        name: "seo"
+        fields:
+          - { label: "Site Name", name: "siteName", widget: "string" }
+          - { label: "Description", name: "description", widget: "text" }
