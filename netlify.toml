@@ -1,8 +1,11 @@
 [build]
-  command = ""          # empty because we’re serving plain HTML
-  publish = "/"         # serve files from repo root
+  command = ""   # plain HTML site
+  publish = "/"
 
-# SPA-style routing: every path serves index.html, our script decides what to show
+[functions]
+  directory = "netlify/functions"
+
+# keep your SPA redirect so /about etc work
 [[redirects]]
   from = "/*"
   to = "/index.html"
