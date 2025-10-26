@@ -1,0 +1,9 @@
+[build]
+  command = ""          # empty because we’re serving plain HTML
+  publish = "/"         # serve files from repo root
+
+# SPA-style routing: every path serves index.html, our script decides what to show
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
