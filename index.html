@@ -36,3 +36,18 @@
     <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
   </body>
 </html>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  // load navigation
+  fetch('/content/settings/navigation.json').then(r=>r.json()).then(nav=>{
+    const el=document.querySelector('nav')||document.body.prepend(document.createElement('nav'));
+    el.innerHTML=nav.items.map(i=>`<a href="${i.href}" style="margin-right:12px">${i.label}</a>`).join('');
+  });
+
+  // load homepage markdown
+  fetch('/content/pages/home.md').then(r=>r.text()).then(text=>{
+    const body=text.replace(/^---[\\s\\S]*?---\\s*/,'');
+    const html=marked.parse(body);
+    document.getElementById('cms-body')?.insertAdjacentHTML('beforeend',html);
+  });
+</script>
