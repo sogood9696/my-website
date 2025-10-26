@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Turn scripts into production-ready shot lists with AI." />
 
-    <!-- Styles (simple, tweak as you like) -->
     <style>
       :root { --maxw: 960px; }
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; color:#222; }
@@ -15,14 +14,15 @@
       h1 { font-size: 40px; margin: 0 0 12px; }
       p.lead { color:#444; margin: 0 auto 20px; max-width: 720px; line-height: 1.6; }
       nav a { margin-right: 12px; color:#222; text-decoration:none; }
+      nav a.active { text-decoration: underline; }
       .cta { display:inline-block; padding:10px 16px; border:1px solid #222; border-radius:8px; text-decoration:none; color:#222; }
       footer { padding: 24px; text-align:center; color:#777; border-top:1px solid #eee; margin-top: 56px; }
-      #fallback { display:none; padding: 12px; text-align:center; color:#777; }
+      #fallback { padding: 12px; text-align:center; color:#777; }
     </style>
 
-    <!-- Netlify Identity widget (required for login/invites) -->
+    <!-- Netlify Identity widget (needed for login/invite) -->
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-    <!-- Markdown renderer for CMS content -->
+    <!-- Markdown renderer -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
@@ -30,7 +30,7 @@
       <div class="wrap">
         <h1>Script-to-Shot Wizard</h1>
         <p class="lead">Turn scripts into production-ready shot lists with AI.</p>
-        <a class="cta" href="#contact">Contact</a>
+        <a class="cta" href="/contact">Contact</a>
       </div>
     </header>
 
@@ -38,12 +38,7 @@
       <nav id="nav"></nav>
       <main id="cms-body">
         <div id="fallback">Loading content…</div>
-        <!-- CMS Markdown will be injected here -->
       </main>
-      <section id="contact" class="wrap">
-        <h2>Contact</h2>
-        <p>Email: hello@example.com</p>
-      </section>
     </div>
 
     <footer>© <span id="y"></span> Script-to-Shot Wizard</footer>
@@ -52,29 +47,16 @@
       // Year
       document.getElementById('y').textContent = new Date().getFullYear();
 
-      // ---- Handle Netlify Identity invite links (PERMANENT FIX) ----
-      // If the email link opens the homepage with #invite_token, complete signup here.
+      // -------- Invite handling (permanent) --------
       (function handleInvite() {
         if (!location.hash.includes('invite_token')) return;
         if (!window.netlifyIdentity) return;
-        // Accept invite -> Netlify Identity will show the password setup if needed
         window.netlifyIdentity.acceptInvite();
-        // After login, take the user to /admin
         window.netlifyIdentity.on('login', () => { location.href = '/admin/'; });
-        // Optional: if user cancels, clean the hash
         window.netlifyIdentity.on('error', () => { history.replaceState(null, '', location.pathname); });
       })();
 
-      // ---- Optional: add a small login helper (person icon usually shows automatically) ----
-      if (window.netlifyIdentity) {
-        window.netlifyIdentity.on('init', user => {
-          // You could show/hide custom login/logout buttons here if you add them later.
-        });
-      }
-
-      // ---- Load editable content from /content ----
-
-      // Load SEO (updates <title> and <meta description> if present)
+      // -------- Load SEO --------
       fetch('/content/settings/seo.json')
         .then(r => r.ok ? r.json() : null)
         .then(seo => {
@@ -87,32 +69,77 @@
           }
         }).catch(()=>{});
 
-      // Load navigation
+      // -------- Navigation --------
+      function setActiveNav(path) {
+        document.querySelectorAll('#nav a').forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === path);
+        });
+      }
+
       fetch('/content/settings/navigation.json')
         .then(r => r.ok ? r.json() : { items: [] })
         .then(nav => {
           const el = document.getElementById('nav');
           if (!el || !nav.items) return;
           el.innerHTML = nav.items.map(i => `<a href="${i.href}">${i.label}</a>`).join('');
+          setActiveNav(location.pathname || '/');
+
+          // Intercept same-origin clicks so we can SPA-navigate
+          el.addEventListener('click', (e) => {
+            const a = e.target.closest('a');
+            if (!a) return;
+            const url = new URL(a.href);
+            if (url.origin === location.origin) {
+              e.preventDefault();
+              if (url.pathname !== location.pathname) {
+                history.pushState({}, '', url.pathname);
+                setActiveNav(url.pathname);
+                loadPage(url.pathname);
+              }
+            }
+          });
         }).catch(()=>{});
 
-      // Load homepage Markdown and render it
-      fetch('/content/pages/home.md')
-        .then(r => r.ok ? r.text() : '')
-        .then(text => {
-          const container = document.getElementById('cms-body');
-          const fb = document.getElementById('fallback');
-          if (fb) fb.style.display = 'block';
-          if (!text) { container.insertAdjacentHTML('beforeend', '<p>No content yet.</p>'); return; }
-          // Strip frontmatter (--- ... ---)
-          const body = text.replace(/^---[\s\S]*?---\s*/, '');
-          const html = marked.parse(body);
-          if (fb) fb.style.display = 'none';
-          container.insertAdjacentHTML('beforeend', html);
-        }).catch(()=>{
-          const fb = document.getElementById('fallback');
-          if (fb) fb.textContent = 'Could not load content.';
-        });
+      // -------- Simple Router: load Markdown by path --------
+      function mdPathFromPathname(pathname) {
+        // Home -> home.md; /about -> about.md; /contact -> contact.md
+        if (pathname === '/' || pathname === '') return '/content/pages/home.md';
+        const slug = pathname.replace(/^\/+|\/+$/g,''); // trim leading/trailing slashes
+        return `/content/pages/${slug}.md`;
+      }
+
+      function loadPage(pathname) {
+        const container = document.getElementById('cms-body');
+        const fb = document.getElementById('fallback');
+        if (container) container.innerHTML = '';
+        if (fb) fb.textContent = 'Loading content…';
+
+        const mdPath = mdPathFromPathname(pathname);
+        fetch(mdPath)
+          .then(r => {
+            if (!r.ok) throw new Error('not-found');
+            return r.text();
+          })
+          .then(text => {
+            const body = text.replace(/^---[\\s\\S]*?---\\s*/, '');
+            const html = marked.parse(body);
+            if (container) container.innerHTML = html;
+            if (fb) fb.textContent = '';
+          })
+          .catch(err => {
+            if (container) container.innerHTML = `<h1>404</h1><p>We couldn't find that page.</p>`;
+            if (fb) fb.textContent = '';
+          });
+      }
+
+      // Handle back/forward buttons
+      window.addEventListener('popstate', () => {
+        setActiveNav(location.pathname || '/');
+        loadPage(location.pathname || '/');
+      });
+
+      // Initial load
+      loadPage(location.pathname || '/');
     </script>
   </body>
 </html>
