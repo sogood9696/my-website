@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "label": "Home", "href": "/" },
+    { "label": "Contact", "href": "#contact" }
+  ]
+}
